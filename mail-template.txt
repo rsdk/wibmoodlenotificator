@@ -5,7 +5,7 @@ Hallo {{ name }}
 {% if msgs %}Sie haben {{ msgs }}.{% endif %}
 
 {% if foren %}Neue Foreneinträge in den letzten 24h:
-{% for forum in foren %} - Forum: "{{ forum.kursname }}" Subject: "{{ forum.subject }}" Ersteller: "{{ forum.username }}"
+{% for forum in foren %} - Kurs: "{{ forum.kursname }}" Subject: "{{ forum.subject }}" Ersteller: "{{ forum.username }}"
 {% endfor %} {% endif %}
 
 Sie bekommen diese Benachrichtigung, da Sie im Lernsystem des berufsbegleitenden Masterstudiengangs Wirtschaftsinformatik (http://wib-lehre.htw-aalen.de/lernsyste) angemeldet sind.

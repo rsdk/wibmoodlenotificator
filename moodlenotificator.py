@@ -263,7 +263,7 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)s - %(asctime)s - %(message)s',
                         filename='moodle_notificator.log',
                         filemode='w',
-                        level=logging.DEBUG)
+                        level=logging.WARNING)
 
     n = Notificator()
     c, u, m = n.fetch()
