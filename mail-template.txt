@@ -1,0 +1,12 @@
+Moodle Notification
+
+Hallo {{ name }}
+
+{% if msgs %}Sie haben {{ msgs }}.{% endif %}
+
+{% if foren %}Neue Foreneinträge in den letzten 24h:
+{% for forum in foren %} - Forum: {{ forum.kursname }} Subject: {{ forum.subject }} Ersteller: {{ forum.username }}
+{% endfor %} {% endif %}
+
+Sie bekommen diese Benachrichtigung, da Sie im Lernsystem des berufsbegleitenden Masterstudiengangs Wirtschaftsinformatik (http://wib-lehre.htw-aalen.de/lernsyste) angemeldet sind.
+Wenn Sie keine Benachrichtigungen wünschen,schreiben Sie Bitte eine Email an "rene.kuebler@hs-aalen.de" mit dem Betreff "Abmeldung MoodleNotificator".

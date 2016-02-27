@@ -6,6 +6,7 @@ import json
 import logging
 import smtplib
 import sys
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import requests
@@ -173,28 +174,32 @@ class Notificator:
 
     def send_mails(self, coll, ucoll, mcoll):
         with open('mail-template.html') as f:
-            template = Template(f.read())
-        self.Mailer.connect()
+            template_html = Template(f.read())
+        with open('mail-template.txt') as f:
+            template_txt = Template(f.read())
+        # self.Mailer.connect()
         for userid in ucoll:
             if userid in coll or (userid in mcoll and (len(mcoll[userid]) > 0)):
-                txt = self.prepare_txt(userid, coll, mcoll, template, ucoll)
+                txt, html = self.prepare_txt(userid, coll, mcoll, template_html, template_txt, ucoll)
                 email, fullname = ucoll[userid]
-                print(email, fullname)
-                self.Mailer.send(fullname, email, txt)
-        self.Mailer.quit()
+                print(email, userid, fullname, html, txt)
+                # self.Mailer.send(fullname, email, txt, html)
+                #self.Mailer.quit()
 
-    def prepare_txt(self, userid, coll, mcoll, template, ucoll):
+    def prepare_txt(self, userid, coll, mcoll, template_html, template_txt, ucoll):
         forumslist = list()
         if userid in coll and len(coll[userid]) > 0:
             for item in coll[userid]:
                 forumslist.append({'kursname': item[2], 'subject': item[1], 'username': item[3]})
         txt_msgs = None
         if userid in mcoll and len(mcoll[userid]) > 1:
-            txt_msgs = '\nSie haben {} ungelesene Nachrichten.'.format(len(mcoll[userid]))
+            txt_msgs = '{} ungelesene Nachrichten'.format(len(mcoll[userid]))
         elif userid in mcoll and len(mcoll[userid]) > 0:
-            txt_msgs = '\nSie haben eine ungelesene Nachricht.'
+            txt_msgs = 'eine ungelesene Nachricht'
         _, fullname = ucoll[userid]
-        return template.render(name=fullname, msgs=txt_msgs, foren=forumslist)
+        html = template_html.render(name=fullname, msgs=txt_msgs, foren=forumslist)
+        txt = template_txt.render(name=fullname, msgs=txt_msgs, foren=forumslist)
+        return txt, html
 
 
 def get_email_address(user):
@@ -232,13 +237,17 @@ class Mailer:
             logging.critical('Could not connect to SMTP. Err: {}'.format(err))
             sys.exit(-1)
 
-    def send(self, to_name, to_email, txt, subject='WIB Lernsystem Notification', ):
-        msg = MIMEText(txt)
-        msg.set_charset('utf8')
+    def send(self, to_name, to_email, txt, html, subject='WIB Lernsystem Notification', ):
+        msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = 'WIB Lernsystem<{}>'.format(self.sender_emailaddress)
         msg['To'] = '{}<{}>'.format(to_name, to_email)
         # print(msg.as_string())
+        msg.set_charset('utf8')
+        part1 = MIMEText(txt, 'plain')
+        part2 = MIMEText(html, 'html')
+        msg.attach(part1)
+        msg.attach(part2)
         logging.debug('Message sent to {}'.format(to_name))
         try:
             self.server.send_message(msg, self.sender_emailaddress, to_email)
@@ -256,6 +265,5 @@ if __name__ == '__main__':
                         level=logging.DEBUG)
 
     n = Notificator()
-
     c, u, m = n.fetch()
     n.send_mails(c, u, m)
