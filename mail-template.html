@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Moodle Notification</title>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif
+        }
+
+        h1 {
+            font-size: 1.5em
+        }
+    </style>
+</head>
+<body>
+<h1>Hallo {{ name }}</h1><br>
+{% if msgs %} <p>Sie haben {{ msgs }}.</p><br>{% endif %}
+{% if foren %}
+<p>Neue Foreneinträge in den letzten 24h:</p>
+<ul>
+    {% for forum in foren %}
+    <li>Forum: {{ forum.kursname }} Subject: {{ forum.subject }} Ersteller: {{ forum.username }}</li>
+    {% endfor %}
+</ul>
+<br>
+{% endif %}
+<p></p>
+<div>Sie bekommen diese Benachrichtigung,
+    da Sie im <a href="http://wib-lehre.htw-aalen.de/lernsystem">Lernsystem des berufsbegleitenden
+        Masterstudiengangs Wirtschaftsinformatik</a> angemeldet sind.
+    Wenn Sie keine Benachrichtigungen wünschen,
+    schreiben Sie Bitte eine
+    <a href="mailto:rene.kuebler@hs-aalen.de?subject=Abmeldung%20MoodleNotificator">Email</a>.
+</div>
+</body>
+</html>

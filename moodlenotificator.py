@@ -1,11 +1,15 @@
-import requests
-import json
-import datetime
-import smtplib
-import logging
-import sys
+# -*- coding: utf-8 -*-
+
 import configparser
+import datetime
+import json
+import logging
+import smtplib
+import sys
 from email.mime.text import MIMEText
+
+import requests
+from jinja2 import Template
 
 
 class MoodleGetter:
@@ -77,7 +81,8 @@ class MoodleGetter:
         disc_list = list()
         full_list = self.mod_forum_get_forum_discussions(forumid)
         for item in full_list:
-            disc_list.append((item['firstuserfullname'], datetime.datetime.fromtimestamp(item['timemodified']), item['subject'],))
+            disc_list.append(
+                (item['firstuserfullname'], datetime.datetime.fromtimestamp(item['timemodified']), item['subject'],))
         return disc_list
 
     def core_enrol_get_enrolled_users(self, courseid=2):
@@ -149,14 +154,14 @@ class Notificator:
             forums = self.Moo.get_forumid_list(courseid)
             for course, typ, forumid in forums:
                 discussions = self.Moo.get_disc_list(forumid)
-                for name, tim, subject in discussions:
+                for dname, tim, subject in discussions:
                     if tim >= datetime.datetime.today() - datetime.timedelta(days=1):
-                        #print(subject)
+                        # print(subject)
                         for userid, email, fullname in users:
                             if userid in collector:
-                                collector[userid].append((course, subject, cname,))
+                                collector[userid].append((course, subject, cname, dname,))
                             else:
-                                collector[userid] = [(course, subject, cname,)]
+                                collector[userid] = [(course, subject, cname, dname,)]
                             if userid not in usercol:
                                 usercol[userid] = (email, fullname,)
                                 msgcol[userid] = self.Moo.get_messages()
@@ -167,39 +172,29 @@ class Notificator:
         return collector, usercol, msgcol
 
     def send_mails(self, coll, ucoll, mcoll):
+        with open('mail-template.html') as f:
+            template = Template(f.read())
+        self.Mailer.connect()
         for userid in ucoll:
             if userid in coll or (userid in mcoll and (len(mcoll[userid]) > 0)):
-                txt = self.prepare_txt(userid, coll, mcoll)
+                txt = self.prepare_txt(userid, coll, mcoll, template, ucoll)
                 email, fullname = ucoll[userid]
-                print(email, fullname, txt)
+                print(email, fullname)
+                self.Mailer.send(fullname, email, txt)
+        self.Mailer.quit()
 
-    def prepare_txt(self, userid, coll, mcoll):
-        txt = ''
+    def prepare_txt(self, userid, coll, mcoll, template, ucoll):
+        forumslist = list()
         if userid in coll and len(coll[userid]) > 0:
-            txt = '\nNeue Forumseinträge: \n'
             for item in coll[userid]:
-                txt += 'Kurs: {} Subject: {} \n'.format(item[2], item[1])
-                #print(item)
+                forumslist.append({'kursname': item[2], 'subject': item[1], 'username': item[3]})
+        txt_msgs = None
         if userid in mcoll and len(mcoll[userid]) > 1:
-            txt += '\nSie haben {} ungelesene Nachrichten.'.format(len(mcoll[userid]))
+            txt_msgs = '\nSie haben {} ungelesene Nachrichten.'.format(len(mcoll[userid]))
         elif userid in mcoll and len(mcoll[userid]) > 0:
-            txt += '\nSie haben eine ungelesene Nachricht.'
-        return txt + '\n\n'
-
-    def check_for_new_mails(self):
-        #self.Mailer.connect()
-        for userid in self.users:
-            mails = get_email_text(self.get_mails(userid))
-            if len(mails) > 0:
-                for m in mails:
-                    if m[4] > self.users[userid][1]:
-                        ##print('Sende Mail', m)
-                        ##self.Mailer.connect()
-                        #self.Mailer.send(m[3], m[1], m[2], self.users[userid][0], m[4])
-                        print(m[3], m[1], m[2])
-                        ##self.Mailer.quit()
-                self.users[userid][1] = mails[0][4]
-        #self.Mailer.quit()
+            txt_msgs = '\nSie haben eine ungelesene Nachricht.'
+        _, fullname = ucoll[userid]
+        return template.render(name=fullname, msgs=txt_msgs, foren=forumslist)
 
 
 def get_email_address(user):
@@ -212,7 +207,8 @@ def get_email_address(user):
 def get_email_text(mails):
     mails_coll = list()
     for mail in mails['messages']:
-        mails_coll.append( (mail['id'], mail['userfromfullname'], mail['usertofullname'], mail['subject'], datetime.datetime.fromtimestamp(mail['timecreated'])))
+        mails_coll.append((mail['id'], mail['userfromfullname'], mail['usertofullname'], mail['subject'],
+                           datetime.datetime.fromtimestamp(mail['timecreated'])))
     return mails_coll
 
 
@@ -233,24 +229,25 @@ class Mailer:
             self.server.ehlo()
             self.server.login(self.username, self.password)
         except smtplib.SMTPResponseException as err:
-            logging.CRITICAL('Could not connect to SMTP. Err: {}'.format(err))
+            logging.critical('Could not connect to SMTP. Err: {}'.format(err))
             sys.exit(-1)
 
-    def send(self, to_name, to_email, txt, subject='WIB Moodle Notification',):
+    def send(self, to_name, to_email, txt, subject='WIB Lernsystem Notification', ):
         msg = MIMEText(txt)
         msg.set_charset('utf8')
         msg['Subject'] = subject
         msg['From'] = 'WIB Lernsystem<{}>'.format(self.sender_emailaddress)
         msg['To'] = '{}<{}>'.format(to_name, to_email)
-        #print(msg.as_string())
-        logging.DEBUG('Message sent to {}'.format(to_name))
+        # print(msg.as_string())
+        logging.debug('Message sent to {}'.format(to_name))
         try:
             self.server.send_message(msg, self.sender_emailaddress, to_email)
         except smtplib.SMTPRecipientsRefused as err:
-            logging.WARNING('Tried to send mail. Recipient refused. Err: {}'.format(err))
+            logging.warning('Tried to send mail. Recipient refused. Err: {}'.format(err))
 
     def quit(self):
         self.server.quit()
+
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)s - %(asctime)s - %(message)s',
@@ -258,71 +255,7 @@ if __name__ == '__main__':
                         filemode='w',
                         level=logging.DEBUG)
 
-    #write_config()
-
     n = Notificator()
 
     c, u, m = n.fetch()
     n.send_mails(c, u, m)
-    '''
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-    mailerconf = config['rsdk.net']
-    moodleconf = config['wib-lehre']
-
-    Mailer = Mailer(
-            mailerconf['mail_smtp_url'],
-            mailerconf['mail_smtp_port'],
-            mailerconf['mail_username'],
-            mailerconf['mail_password'],
-            mailerconf['mail_sender_emailaddress']
-        )
-
-    Moo = MoodleGetter(
-            moodleconf['moodle_resturl'],
-            moodleconf['moodle_wstoken']
-    )
-
-
-    print(Moo.core_message_get_messages(26))
-
-    '''
-    '''
-    txt = "New Message from {}\n\nSubject: {}\nTimestamp: {}\n" \
-              "More Information: " \
-              "https://wib-lehre.htw-aalen.de/lernsystem".format(from_name, subject, dt)
-
-
-    #result = m.core_course_get_courses()
-    result = m.get_courseid_list()
-    for item in result:
-        print(item)
-
-
-    #result_c = m.mod_forum_get_forums_by_courses(3)
-    result_c = m.get_forumid_list(20)
-    print(result_c)
-
-
-    #result_e = m.core_enrol_get_enrolled_users()
-    result_e = m.get_course_user_list(2)
-    print(result_e)
-
-
-
-    #result_f = m.mod_forum_get_forum_discussions(34)
-    result_f = m.get_disc_list(34)
-    print(result_f)
-
-
-    n = Notificator()
-    print(n.users)
-    sleeptime = 60 * 15
-
-
-    while True:
-        logging.DEBUG('Sleeping for {} minutes.'.format(sleeptime / 60))
-        time.sleep(sleeptime)
-        logging.INFO('checking for new Mail')
-        n.check_for_new_mails()
-    '''
