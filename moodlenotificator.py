@@ -173,18 +173,19 @@ class Notificator:
         return collector, usercol, msgcol
 
     def send_mails(self, coll, ucoll, mcoll):
-        with open('mail-template.html') as f:
+        with open('mail-template.html', encoding='utf-8') as f:
             template_html = Template(f.read())
-        with open('mail-template.txt') as f:
+        with open('mail-template.txt', encoding='utf-8') as f:
             template_txt = Template(f.read())
-        # self.Mailer.connect()
+        self.Mailer.connect()
         for userid in ucoll:
-            if userid in coll or (userid in mcoll and (len(mcoll[userid]) > 0)):
-                txt, html = self.prepare_txt(userid, coll, mcoll, template_html, template_txt, ucoll)
-                email, fullname = ucoll[userid]
-                print(email, userid, fullname, html, txt)
-                # self.Mailer.send(fullname, email, txt, html)
-                #self.Mailer.quit()
+            if userid == 23:
+                if userid in coll or (userid in mcoll and (len(mcoll[userid]) > 0)):
+                    txt, html = self.prepare_txt(userid, coll, mcoll, template_html, template_txt, ucoll)
+                    email, fullname = ucoll[userid]
+                    print(email, userid, fullname, html, txt)
+                    self.Mailer.send(fullname, email, txt, html)
+        self.Mailer.quit()
 
     def prepare_txt(self, userid, coll, mcoll, template_html, template_txt, ucoll):
         forumslist = list()
