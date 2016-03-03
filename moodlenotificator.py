@@ -179,7 +179,7 @@ class Notificator:
             template_txt = Template(f.read())
         self.Mailer.connect()
         for userid in ucoll:
-            if userid == 23:
+            if userid not in [99]:
                 if userid in coll or (userid in mcoll and (len(mcoll[userid]) > 0)):
                     txt, html = self.prepare_txt(userid, coll, mcoll, template_html, template_txt, ucoll)
                     email, fullname = ucoll[userid]
